@@ -1,0 +1,3 @@
+### Install OpenCV
+1. Follow the link: [Install on Linux](https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html)
+2. I used WSL to run the code. Not sure if it works on Windows...

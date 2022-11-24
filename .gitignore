@@ -1,0 +1,4 @@
+.vscode/*
+**.o
+src/data_util
+src/**.png
