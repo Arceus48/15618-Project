@@ -103,10 +103,29 @@ void element_add(double* a, double* b, double* result, int nrow, int ncol) {
   }
 }
 
+void element_add(double* a, double b, double* result, int nrow, int ncol) {
+  for (int i = 0; i < nrow * ncol; i++) {
+    result[i] = a[i] + b;
+  }
+}
+
 void element_subtract(double* a, double* b, double* result, int nrow,
                       int ncol) {
   for (int i = 0; i < nrow * ncol; i++) {
     result[i] = a[i] - b[i];
+  }
+}
+
+void element_subtract(double a, double* b, double* result, int nrow,
+                      int ncol) {
+  for (int i = 0; i < nrow * ncol; i++) {
+    result[i] = a - b[i];
+  }
+}
+
+void element_subtract(double* a, double b, double* result, int nrow, int ncol) {
+  for (int i = 0; i < nrow * ncol; i++) {
+    result[i] = a[i] - b;
   }
 }
 
@@ -117,8 +136,7 @@ void element_multiply(double* a, double* b, double* result, int nrow,
   }
 }
 
-void element_scale(double* a, double b, double* result, int nrow,
-                      int ncol) {
+void element_scale(double* a, double b, double* result, int nrow, int ncol) {
   for (int i = 0; i < nrow * ncol; i++) {
     result[i] = a[i] * b;
   }
@@ -131,4 +149,42 @@ double array_sum(double* a, int nrow, int ncol) {
   }
 
   return result;
+}
+
+void element_abs(double* a, double* result, int nrow, int ncol) {
+  for (int i = 0; i < nrow * ncol; i++) {
+    result[i] = fabs(a[i]);
+  }
+}
+
+void element_sqrt(double* a, double* result, int nrow, int ncol) {
+  for (int i = 0; i < nrow * ncol; i++) {
+    result[i] = sqrt(a[i]);
+  }
+}
+
+void element_divide_skip_0(double* a, double* b, double* result, int nrow,
+                           int ncol, double default_value) {
+  for (int i = 0; i < nrow * ncol; i++) {
+    if (b[i] == 0.0) {
+      result[i] = default_value;
+    } else {
+      result[i] = a[i] / b[i];
+    }
+  }
+}
+
+void element_set_value_below_threshold(double* a, double* b, int nrow, int ncol,
+                                       double threshold, double value) {
+  for (int i = 0; i < nrow * ncol; i++) {
+    if (b[i] < threshold) {
+      a[i] = value;
+    }
+  }
+}
+
+void element_tanh(double* a, int nrow, int ncol) {
+  for (int i = 0; i < nrow * ncol; i++) {
+    a[i] = tanh(a[i]);
+  }
 }
