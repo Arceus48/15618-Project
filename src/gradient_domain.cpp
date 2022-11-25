@@ -1,4 +1,3 @@
-#include <math.h>
 #include <stdio.h>
 
 #include "data_util.cpp"
@@ -168,6 +167,4 @@ void fuseGrad(double* A, double* F, double sig, double thld, double* gradA,
   delete[] one_Ws;
 }
 
-int main(int argc, char** argv) {
-  return 0;
-}
+int main(int argc, char** argv) { return 0; }

@@ -1,3 +1,5 @@
+#include <math.h>
+
 /**
  * Allocate memory for gradx and grady before calling the function!
  *
@@ -116,8 +118,7 @@ void element_subtract(double* a, double* b, double* result, int nrow,
   }
 }
 
-void element_subtract(double a, double* b, double* result, int nrow,
-                      int ncol) {
+void element_subtract(double a, double* b, double* result, int nrow, int ncol) {
   for (int i = 0; i < nrow * ncol; i++) {
     result[i] = a - b[i];
   }
