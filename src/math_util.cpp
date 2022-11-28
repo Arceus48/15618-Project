@@ -1,4 +1,6 @@
-#include <math.h>
+#include "math_util.h"
+
+#include <stdio.h>
 
 /**
  * Allocate memory for gradx and grady before calling the function!
@@ -64,7 +66,7 @@ void divergence(double* gradx, double* grady, double* div, int nrow, int ncol) {
     // First column.
     div[ncol * i] += grady[ncol * i];
 
-    for (int j = 1; j < nrow; j++) {
+    for (int j = 1; j < ncol; j++) {
       div[ncol * i + j] += grady[ncol * i + j] - grady[ncol * i + (j - 1)];
     }
   }

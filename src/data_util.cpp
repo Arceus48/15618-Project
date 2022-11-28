@@ -1,3 +1,4 @@
+#include "data_util.h"
 #include <iostream>
 #include <opencv2/imgcodecs.hpp>
 using namespace cv;
@@ -21,9 +22,9 @@ double** readImage(const char* file_name, int* rowNum, int* colNum) {
   }
   unsigned char* input = (unsigned char*)(image.data);
   for (int i = 0; i < image.rows * image.cols; i++) {
-    result[0][i] = input[3 * i] / 255.0;
-    result[1][i] = input[3 * i + 1] / 255.0;
-    result[2][i] = input[3 * i + 2] / 255.0;
+    result[0][i] = input[3 * i] / 256.0;
+    result[1][i] = input[3 * i + 1] / 256.0;
+    result[2][i] = input[3 * i + 2] / 256.0;
   }
 
   *rowNum = image.rows;
@@ -45,9 +46,9 @@ void saveImage(double** data, const char* file_name, int rowNum, int colNum) {
   Mat image = Mat(rowNum, colNum, CV_8UC3);
   unsigned char* output = (unsigned char*)(image.data);
   for (int i = 0; i < rowNum * colNum; i++) {
-    output[3 * i] = std::min(255, std::max(0, (int)(data[0][i] * 255)));
-    output[3 * i + 1] = std::min(255, std::max(0, (int)(data[1][i] * 255)));
-    output[3 * i + 2] = std::min(255, std::max(0, (int)(data[2][i] * 255)));
+    output[3 * i] = std::min(255, std::max(0, (int)(data[0][i] * 256)));
+    output[3 * i + 1] = std::min(255, std::max(0, (int)(data[1][i] * 256)));
+    output[3 * i + 2] = std::min(255, std::max(0, (int)(data[2][i] * 256)));
   }
 
   imwrite(file_name, image);
