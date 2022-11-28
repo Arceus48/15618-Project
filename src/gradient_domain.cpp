@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <chrono>
 #include <iostream>
 
 #include "data_util.h"
@@ -258,9 +259,14 @@ int main(int argc, char** argv) {
   }
 
   // Computation
+  auto start = std::chrono::high_resolution_clock::now();
   fuseGradRgb(argb, frgb, gradA, gradF, fused, sig, thld, nrow, ncol);
   gradInteRgb(fused, argb, frgb, output, bound_cond, init_opt, nrow, ncol, conv,
               niter);
+  auto end = std::chrono::high_resolution_clock::now();
+
+  printf("Total time: %ld ms\n",
+         chrono::duration_cast<chrono::milliseconds>(end - start).count());
 
   saveImage(output, "test.png", nrow, ncol);
 

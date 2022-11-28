@@ -1,4 +1,5 @@
 #include "data_util.h"
+
 #include <iostream>
 #include <opencv2/imgcodecs.hpp>
 using namespace cv;
@@ -53,11 +54,3 @@ void saveImage(double** data, const char* file_name, int rowNum, int colNum) {
 
   imwrite(file_name, image);
 }
-
-// int main() {
-//   // Example on loading and saving images"
-//   int rowNum, colNum;
-//   double** data = readImage("../img/lamp/lamp_ambient.tif", &rowNum, &colNum);
-//   saveImage(data, "haha.png", rowNum, colNum);
-//   return 0;
-// }
