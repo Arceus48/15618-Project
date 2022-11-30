@@ -1,6 +1,20 @@
 ### Install OpenCV
-1. Follow the link: [Install on Linux](https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html)
-2. I used WSL to run the code. Not sure if it works on Windows...
+1. Run the commands below to install OpenCV
+
+```bash
+wget -O opencv.zip https://github.com/opencv/opencv/archive/4.x.zip
+unzip opencv.zip
+mkdir -p build && cd build
+# Not sure if $HOME should work.. If not, use your absolute path here
+cmake  ../opencv-4.x -DCMAKE_INSTALL_PREFIX=$HOME/opencv_install
+make install
+```
+2. Add the following line to your bashrc:
+
+```bash
+# The cuda path was added previously...
+export LD_LIBRARY_PATH=$HOME/opencv_install/lib:/usr/local/cuda-11.7/lib64/:${LD_LIBRARY_PATH}
+```
 
 ### How to use it
 

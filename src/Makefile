@@ -1,7 +1,7 @@
 CC = g++
 CXXFLAGS = -O2 -std=c++17 -Wall -Wextra
-INCLUDES = -I/usr/local/include/opencv4
-LDFLAGS = -L/usr/local/lib
+INCLUDES = -I$$HOME/opencv_install/include/opencv4
+LDFLAGS = -L$$HOME/opencv_install/lib
 LDLIBS = -lopencv_imgcodecs -lopencv_core -fopenmp
 
 all: gradient_domain
