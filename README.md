@@ -1,5 +1,5 @@
 ### Install OpenCV
-1. Run the commands below to install OpenCV
+1. Run the commands at your home directory below to install OpenCV
 
 ```bash
 wget -O opencv.zip https://github.com/opencv/opencv/archive/4.x.zip
