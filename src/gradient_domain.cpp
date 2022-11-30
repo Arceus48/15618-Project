@@ -1,3 +1,4 @@
+#include <omp.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -9,6 +10,23 @@
 using namespace std;
 
 const int EDGE_WIDTH = 5;
+
+double* tmp1;
+double* tmp2;
+double* tmp3;
+double* nume;
+double* denom;
+double* M;
+double* Ws;
+double* one_M;
+double* one_Ws;
+
+double* B;
+double* r;
+double* tmp;
+double* q;
+double* d;
+double* D;
 
 /**
  * Allocate space for output before calling the function!
@@ -23,30 +41,33 @@ const int EDGE_WIDTH = 5;
  */
 void gradIntegrate(double* D, double* input, double* output, int nrow, int ncol,
                    double conv = 1e-3, int niter = 2000) {
-  double* B = new double[nrow * ncol];
-  double* r = new double[nrow * ncol];
-  double* tmp = new double[nrow * ncol];
-  double* q = new double[nrow * ncol];
-  double* d = new double[nrow * ncol];
-
+#pragma omp parallel for default(shared)
   for (int i = 0; i < nrow * ncol; i++) {
     B[i] = 0.0;
   }
-
+#pragma omp parallel for default(shared)
   for (int i = EDGE_WIDTH; i < nrow - EDGE_WIDTH; i++) {
     for (int j = EDGE_WIDTH; j < ncol - EDGE_WIDTH; j++) {
       B[i * ncol + j] = 1.0;
     }
   }
-
+#pragma omp parallel for default(shared)
   // Allocate space for output before calling the function!
-  memcpy(output, input, sizeof(double) * nrow * ncol);
+  for (int i = 0; i < nrow * ncol; i++) {
+    output[i] = input[i];
+  }
+  // memcpy(output, input, sizeof(double) * nrow * ncol);
 
   laplacian(output, r, nrow, ncol);
   element_subtract(D, r, r, nrow, ncol);
   element_multiply(B, r, r, nrow, ncol);
 
-  memcpy(d, r, sizeof(double) * nrow * ncol);
+#pragma omp parallel for default(shared)
+  // Allocate space for output before calling the function!
+  for (int i = 0; i < nrow * ncol; i++) {
+    d[i] = r[i];
+  }
+  // memcpy(d, r, sizeof(double) * nrow * ncol);
 
   element_multiply(r, r, tmp, nrow, ncol);
   double delta = array_sum(tmp, nrow, ncol);
@@ -85,12 +106,6 @@ void gradIntegrate(double* D, double* input, double* output, int nrow, int ncol,
     element_scale(d, beta, tmp, nrow, ncol);
     element_add(r, tmp, d, nrow, ncol);
   }
-
-  delete[] B;
-  delete[] r;
-  delete[] tmp;
-  delete[] q;
-  delete[] d;
 }
 
 /**
@@ -113,16 +128,6 @@ void fuseGrad(double* A, double* F, double sig, double thld, double* gradA,
               double* gradF, double* fused, int nrow, int ncol) {
   gradient(A, gradA, gradA + nrow * ncol, nrow, ncol);
   gradient(F, gradF, gradF + nrow * ncol, nrow, ncol);
-
-  double* tmp1 = new double[nrow * ncol * 2];
-  double* tmp2 = new double[nrow * ncol];
-  double* tmp3 = new double[nrow * ncol];
-  double* nume = new double[nrow * ncol];
-  double* denom = new double[nrow * ncol];
-  double* M = new double[nrow * ncol];
-  double* Ws = new double[nrow * ncol];
-  double* one_M = new double[nrow * ncol];
-  double* one_Ws = new double[nrow * ncol];
 
   element_multiply(gradA, gradF, tmp1, nrow, ncol * 2);
   element_add(tmp1, tmp1 + nrow * ncol, tmp2, nrow, ncol);
@@ -165,16 +170,6 @@ void fuseGrad(double* A, double* F, double sig, double thld, double* gradA,
                    ncol);
   element_multiply(Ws, gradA + nrow * ncol, tmp3, nrow, ncol);
   element_add(fused + nrow * ncol, tmp3, fused + nrow * ncol, nrow, ncol);
-
-  delete[] tmp1;
-  delete[] tmp2;
-  delete[] tmp3;
-  delete[] nume;
-  delete[] denom;
-  delete[] M;
-  delete[] Ws;
-  delete[] one_M;
-  delete[] one_Ws;
 }
 
 /**
@@ -218,13 +213,11 @@ void gradInteRgb(double* fused, double** argb, double** frgb, double** output,
   (void)init_opt;
   // Assume init_opt is 2 and bound is 2.
   // input pointer should be frgb.
-  double* D = new double[nrow * ncol];
   for (int i = 2; i >= 0; i--) {
     divergence(fused + i * 2 * nrow * ncol, fused + (i * 2 + 1) * nrow * ncol,
                D, nrow, ncol);
     gradIntegrate(D, frgb[i], output[i], nrow, ncol, conv, niter);
   }
-  delete D;
 }
 
 int main(int argc, char** argv) {
@@ -257,6 +250,24 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 3; i++) {
     output[i] = new double[nrow * ncol];
   }
+
+  // Buffers for other functions
+  tmp1 = new double[nrow * ncol * 2];
+  tmp2 = new double[nrow * ncol];
+  tmp3 = new double[nrow * ncol];
+  nume = new double[nrow * ncol];
+  denom = new double[nrow * ncol];
+  M = new double[nrow * ncol];
+  Ws = new double[nrow * ncol];
+  one_M = new double[nrow * ncol];
+  one_Ws = new double[nrow * ncol];
+
+  B = new double[nrow * ncol];
+  r = new double[nrow * ncol];
+  tmp = new double[nrow * ncol];
+  q = new double[nrow * ncol];
+  d = new double[nrow * ncol];
+  D = new double[nrow * ncol];
 
   // Computation
   auto start = std::chrono::high_resolution_clock::now();

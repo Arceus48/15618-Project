@@ -5,7 +5,7 @@
 ### How to use it
 
 ```bash
-./src/gradient_domain ./img/museum/museum_ambient.png ./img/museum/museum_flash.png 10 0.5 2 2 0.05 500
+./src/gradient_domain ./img/museum/museum_ambient.png ./img/museum/museum_flash.png 10 0.5 2 2 0.005 1000
 ```
 
 Arguments:
@@ -17,3 +17,9 @@ Arguments:
 6. init_opt
 7. convergence check number
 8. max iteration
+
+### OpenMP
+Set number of threads:
+```bash
+export OMP_NUM_THREADS=<num>
+```

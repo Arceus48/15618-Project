@@ -2,7 +2,7 @@ CC = g++
 CXXFLAGS = -O2 -std=c++17 -Wall -Wextra
 INCLUDES = -I/usr/local/include/opencv4
 LDFLAGS = -L/usr/local/lib
-LDLIBS = -lopencv_imgcodecs -lopencv_core
+LDLIBS = -lopencv_imgcodecs -lopencv_core -fopenmp
 
 all: gradient_domain
 
