@@ -50,7 +50,7 @@ void element_multiply(double* a, double* b, double* result, int nrow, int ncol);
 
 void element_scale(double* a, double b, double* result, int nrow, int ncol);
 
-double array_sum(double* a, int nrow, int ncol);
+double array_sum(double* a, int nrow, int ncol, double& result);
 
 void element_abs(double* a, double* result, int nrow, int ncol);
 
