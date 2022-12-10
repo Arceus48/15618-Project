@@ -4,3 +4,4 @@ src/gradient_domain
 src/data_util
 src/**.png
 **.png
+perf**
