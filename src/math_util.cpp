@@ -95,21 +95,29 @@ void divergence(double* gradx, double* grady, double* div, int nrow, int ncol) {
 void laplacian(double* input, double* output, int nrow, int ncol) {
   // Since the filter is symmetric with respect to a point, no need to mirror
   // it.
-  double filter[9] = {0, 1, 0, 1, -4, 1, 0, 1, 0};
 #pragma omp parallel for default(shared)
-  for (int i = -1; i < nrow - 1; i++) {
-    for (int j = -1; j < ncol - 1; j++) {
-      int filterIndex = 0;
-      double curValue = 0;
-      for (int ii = i; ii < i + 3; ii++) {
-        for (int jj = j; jj < j + 3; jj++) {
-          if (ii >= 0 && ii < nrow && jj >= 0 && jj < ncol) {
-            curValue += filter[filterIndex] * input[ii * ncol + jj];
-          }
-          filterIndex++;
-        }
+  for (int i = 0; i < nrow; i++) {
+    if (i != 0) {
+      // Load previous row
+      for (int j = 0; j < ncol; j++) {
+        output[i * ncol + j] = input[(i - 1) * ncol + j];
       }
-      output[(i + 1) * ncol + (j + 1)] = curValue;
+    } else {
+      for (int j = 0; j < ncol; j++) {
+        output[i * ncol + j] = 0;
+      }
+    }
+    // This row
+    output[i * ncol] += input[i * ncol + 1] - 4 * input[i * ncol];
+    for (int j = 1; j < ncol - 1; j++) {
+      output[i * ncol + j] += input[i * ncol + j - 1] + input[i * ncol + j + 1] - 4 * input[i * ncol + j];
+    }
+    output[i * ncol + ncol - 1] += input[i * ncol + ncol - 2] - 4 * input[i * ncol];
+    if (i != nrow - 1) {
+      // Next row
+      for (int j = 0; j < ncol; j++) {
+        output[i * ncol + j] += input[(i + 1) * ncol + j];
+      }
     }
   }
 }
