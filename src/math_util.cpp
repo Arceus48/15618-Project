@@ -115,23 +115,6 @@ void laplacian(double* input, double* output, int nrow, int ncol) {
       }
     }
   }
-  // double filter[9] = {0, 1, 0, 1, -4, 1, 0, 1, 0};
-  // #pragma omp for
-  //   for (int i = -1; i < nrow - 1; i++) {
-  //     for (int j = -1; j < ncol - 1; j++) {
-  //       int filterIndex = 0;
-  //       double curValue = 0;
-  //       for (int ii = i; ii < i + 3; ii++) {
-  //         for (int jj = j; jj < j + 3; jj++) {
-  //           if (ii >= 0 && ii < nrow && jj >= 0 && jj < ncol) {
-  //             curValue += filter[filterIndex] * input[ii * ncol + jj];
-  //           }
-  //           filterIndex++;
-  //         }
-  //       }
-  //       output[(i + 1) * ncol + (j + 1)] = curValue;
-  //     }
-  //   }
 }
 
 void element_add(double* a, double* b, double* result, int nrow, int ncol) {

@@ -59,8 +59,7 @@ void gradIntegrate(double* D, double* input, double* output, int nrow, int ncol,
   }
 
   laplacian(output, r, nrow, ncol);
-  // element_subtract(D, r, r, nrow, ncol);
-  // element_multiply(B, r, r, nrow, ncol);
+
 #pragma omp for
   for (int i = 0; i < nrow * ncol; i++) {
     r[i] = B[i] * (D[i] - r[i]);
@@ -72,23 +71,26 @@ void gradIntegrate(double* D, double* input, double* output, int nrow, int ncol,
     d[i] = r[i];
   }
 
-  element_multiply(r, r, tmp, nrow, ncol);
-
-  double delta = array_sum(tmp, nrow, ncol, result);
+  result = 0;
+#pragma omp barrier
+#pragma omp for reduction(+ : result)
+  for (int j = 0; j < nrow * ncol; j++) {
+    result += r[j] * r[j];
+  }
+  double delta = result;
   double ita;
   double delta_old;
   double beta;
   for (int i = 0; i < niter; i++) {
     double loss = sqrt(delta);
-// #pragma omp single
-//     printf("Iter: %d, loss: %f\n", i, loss);
+    // #pragma omp single
+    //     printf("Iter: %d, loss: %f\n", i, loss);
     if (loss <= conv) {
       break;
     }
 
     laplacian(d, q, nrow, ncol);
-    // element_multiply(d, q, tmp, nrow, ncol);
-    // denom = array_sum(tmp, nrow, ncol, result);
+
     result = 0;
 #pragma omp barrier
 #pragma omp for reduction(+ : result)
@@ -97,26 +99,18 @@ void gradIntegrate(double* D, double* input, double* output, int nrow, int ncol,
     }
     ita = delta / result;
 
-    // element_multiply(B, d, tmp, nrow, ncol);
-    // element_scale(tmp, ita, tmp, nrow, ncol);
-    // element_add(output, tmp, output, nrow, ncol);
 #pragma omp for nowait
     for (int j = 0; j < nrow * ncol; j++) {
       output[j] += B[j] * ita * d[j];
     }
 
-    // element_scale(q, ita, tmp, nrow, ncol);
-    // element_subtract(r, tmp, tmp, nrow, ncol);
-    // element_multiply(B, tmp, r, nrow, ncol);
 #pragma omp for
     for (int j = 0; j < nrow * ncol; j++) {
       r[j] = B[j] * (r[j] - ita * q[j]);
     }
 
     delta_old = delta;
-    // element_multiply(r, r, tmp, nrow, ncol);
 
-    // delta = array_sum(tmp, nrow, ncol, result);
     result = 0;
 #pragma omp barrier
 #pragma omp for reduction(+ : result)
@@ -125,8 +119,7 @@ void gradIntegrate(double* D, double* input, double* output, int nrow, int ncol,
     }
     delta = result;
     beta = delta / delta_old;
-    // element_scale(d, beta, tmp, nrow, ncol);
-    // element_add(r, tmp, d, nrow, ncol);
+
 #pragma omp barrier
 #pragma omp for
     for (int j = 0; j < nrow * ncol; j++) {
@@ -153,65 +146,71 @@ void gradIntegrate(double* D, double* input, double* output, int nrow, int ncol,
  */
 void fuseGrad(double* A, double* F, double sig, double thld, double* gradA,
               double* gradF, double* fused, int nrow, int ncol) {
-#pragma omp parallel
-  {
-    gradient(A, gradA, gradA + nrow * ncol, nrow, ncol);
-    gradient(F, gradF, gradF + nrow * ncol, nrow, ncol);
+  gradient(A, gradA, gradA + nrow * ncol, nrow, ncol);
+  gradient(F, gradF, gradF + nrow * ncol, nrow, ncol);
 
-    element_multiply(gradA, gradF, tmp1, nrow, ncol * 2);
+  result = 0;
+#pragma omp barrier
+#pragma omp for
+  for (int i = 0; i < nrow * ncol; i++) {
+    nume[i] = fabs(gradA[i] * gradF[i] +
+                   gradA[i + nrow * ncol] * gradF[i + nrow * ncol]);
+  }
 
-    element_add(tmp1, tmp1 + nrow * ncol, tmp2, nrow, ncol);
+#pragma omp for nowait
+  for (int i = 0; i < nrow * ncol; i++) {
+    tmp2[i] =
+        gradA[i] * gradA[i] + gradA[i + nrow * ncol] * gradA[i + nrow * ncol];
+  }
 
-    element_abs(tmp2, nume, nrow, ncol);
+#pragma omp for
+  for (int i = 0; i < nrow * ncol; i++) {
+    tmp3[i] =
+        gradF[i] * gradF[i] + gradF[i + nrow * ncol] * gradF[i + nrow * ncol];
+  }
 
-    element_multiply(gradA, gradA, tmp1, nrow, ncol * 2);
+#pragma omp for
+  for (int i = 0; i < nrow * ncol; i++) {
+    denom[i] = sqrt(tmp2[i] * tmp3[i]);
+  }
 
-    element_add(tmp1, tmp1 + nrow * ncol, tmp2, nrow, ncol);
+  // tmp2 holds magA ^ 2, tmp3 holds magF ^ 2
+  element_divide_skip_0(nume, denom, M, nrow, ncol, 0);
+#pragma omp for
+  for (int i = 0; i < nrow * ncol; i++) {
+    if (tmp2[i] < 5e-3 * 5e-3) {
+      M[i] = 1;
+    }
+    if (tmp3[i] < 5e-3 * 5e-3) {
+      M[i] = 0;
+    }
+  }
 
-    element_multiply(gradF, gradF, tmp1, nrow, ncol * 2);
+#pragma omp for
+  for (int i = 0; i < nrow * ncol; i++) {
+    Ws[i] = 0.5 * (tanh(sig * (F[i] - thld)) + 1);
+  }
 
-    element_add(tmp1, tmp1 + nrow * ncol, tmp3, nrow, ncol);
+#pragma omp for nowait
+  for (int i = 0; i < nrow * ncol; i++) {
+    one_Ws[i] = 1 - Ws[i];
+  }
 
-    element_multiply(tmp2, tmp3, denom, nrow, ncol);
+#pragma omp for
+  for (int i = 0; i < nrow * ncol; i++) {
+    one_M[i] = 1 - M[i];
+  }
 
-    element_sqrt(denom, denom, nrow, ncol);
-
-    // tmp2 holds magA ^ 2, tmp3 holds magF ^ 2
-    element_divide_skip_0(nume, denom, M, nrow, ncol, 0);
-    element_set_value_below_threshold(M, tmp2, nrow, ncol, 5e-3 * 5e-3, 1.0);
-    element_set_value_below_threshold(M, tmp3, nrow, ncol, 5e-3 * 5e-3, 0.0);
-
-    element_subtract(F, thld, tmp2, nrow, ncol);
-    element_scale(tmp2, sig, Ws, nrow, ncol);
-    element_tanh(Ws, nrow, ncol);
-    element_add(Ws, 1.0, Ws, nrow, ncol);
-    element_scale(Ws, 0.5, Ws, nrow, ncol);
-
-    element_subtract(1.0, Ws, one_Ws, nrow, ncol);
-    element_subtract(1.0, M, one_M, nrow, ncol);
-
-    // Merge into fuse. Done half by half to avoid stacking.
-    element_multiply(one_M, gradA, fused, nrow, ncol);
-    element_multiply(M, gradF, tmp2, nrow, ncol);
-
-    element_add(tmp2, fused, fused, nrow, ncol);
-
-    element_multiply(fused, one_Ws, fused, nrow, ncol);
-    element_multiply(Ws, gradA, tmp3, nrow, ncol);
-
-    element_add(fused, tmp3, fused, nrow, ncol);
-    element_multiply(one_M, gradA + nrow * ncol, fused + nrow * ncol, nrow,
-                     ncol);
-    element_multiply(M, gradF + nrow * ncol, tmp2, nrow, ncol);
-
-    element_add(tmp2, fused + nrow * ncol, fused + nrow * ncol, nrow, ncol);
-
-    element_multiply(fused + nrow * ncol, one_Ws, fused + nrow * ncol, nrow,
-                     ncol);
-
-    element_multiply(Ws, gradA + nrow * ncol, tmp3, nrow, ncol);
-
-    element_add(fused + nrow * ncol, tmp3, fused + nrow * ncol, nrow, ncol);
+#pragma omp for
+  for (int i = 0; i < nrow * ncol * 2; i++) {
+    if (i < nrow * ncol) {
+      fused[i] = Ws[i] * gradA[i] +
+                 one_Ws[i] * (M[i] * gradF[i] + one_M[i] * gradA[i]);
+    } else {
+      fused[i] = Ws[i - nrow * ncol] * gradA[i] +
+                 one_Ws[i - nrow * ncol] * (M[i - nrow * ncol] * gradF[i] +
+                                            one_M[i - nrow * ncol] * gradA[i]);
+    }
   }
 }
 
@@ -229,10 +228,13 @@ void fuseGrad(double* A, double* F, double sig, double thld, double* gradA,
  */
 void fuseGradRgb(double** A, double** F, double* gradA, double* gradF,
                  double* fused, double sig, double thld, int nrow, int ncol) {
-  for (int i = 2; i >= 0; i--) {
-    fuseGrad(A[i], F[i], sig, thld, gradA + i * 2 * nrow * ncol,
-             gradF + i * 2 * nrow * ncol, fused + i * 2 * nrow * ncol, nrow,
-             ncol);
+#pragma omp parallel default(shared)
+  {
+    for (int i = 2; i >= 0; i--) {
+      fuseGrad(A[i], F[i], sig, thld, gradA + i * 2 * nrow * ncol,
+               gradF + i * 2 * nrow * ncol, fused + i * 2 * nrow * ncol, nrow,
+               ncol);
+    }
   }
 }
 
@@ -256,9 +258,9 @@ void gradInteRgb(double* fused, double** argb, double** frgb, double** output,
   (void)init_opt;
   // Assume init_opt is 2 and bound is 2.
   // input pointer should be frgb.
-  for (int i = 2; i >= 0; i--) {
 #pragma omp parallel default(shared)
-    {
+  {
+    for (int i = 2; i >= 0; i--) {
       divergence(fused + i * 2 * nrow * ncol, fused + (i * 2 + 1) * nrow * ncol,
                  D, nrow, ncol);
       gradIntegrate(D, frgb[i], output[i], nrow, ncol, conv, niter);
