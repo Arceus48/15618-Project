@@ -37,3 +37,16 @@ Set number of threads:
 ```bash
 export OMP_NUM_THREADS=<num>
 ```
+
+### Profiling
+Get cache misses:
+```bash
+perf stat -e task-clock,cycles,instructions,cache-references,cache-misses ./src/gradient_domain ./img/museum/museum_ambient.png ./img/museum/museum_flash.png 10 0.5 2 2 0.005 1000
+```
+
+Time functions:
+```bash
+perf record <executable>
+
+perf report
+```

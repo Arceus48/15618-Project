@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 3; i++) {
     output[i] = new double[nrow * ncol];
   }
-
+  cout << nrow << " " << ncol <<endl;
   // Buffers for other functions
   tmp1 = new double[nrow * ncol * 2];
   tmp2 = new double[nrow * ncol];
