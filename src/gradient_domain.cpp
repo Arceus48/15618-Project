@@ -59,8 +59,12 @@ void gradIntegrate(double* D, double* input, double* output, int nrow, int ncol,
   }
 
   laplacian(output, r, nrow, ncol);
-  element_subtract(D, r, r, nrow, ncol);
-  element_multiply(B, r, r, nrow, ncol);
+  // element_subtract(D, r, r, nrow, ncol);
+  // element_multiply(B, r, r, nrow, ncol);
+#pragma omp for
+  for (int i = 0; i < nrow * ncol; i++) {
+    r[i] = B[i] * (D[i] - r[i]);
+  }
 
 #pragma omp for
   // Allocate space for output before calling the function!
@@ -70,39 +74,78 @@ void gradIntegrate(double* D, double* input, double* output, int nrow, int ncol,
 
   element_multiply(r, r, tmp, nrow, ncol);
 
-  double delta = array_sum(tmp, nrow, ncol, result);
-  double denom;
+  double delta = 1;
   double ita;
   double delta_old;
   double beta;
   for (int i = 0; i < niter; i++) {
     double loss = 100;
-// #pragma omp single
-//     printf("Iter: %d, loss: %f\n", i, loss);
+    // #pragma omp single
+    //     printf("Iter: %d, loss: %f\n", i, loss);
     if (loss <= conv) {
       break;
     }
 
     laplacian(d, q, nrow, ncol);
-    element_multiply(d, q, tmp, nrow, ncol);
-    denom = array_sum(tmp, nrow, ncol, result);
-    ita = delta / denom;
+    // element_multiply(d, q, tmp, nrow, ncol);
+    // denom = array_sum(tmp, nrow, ncol, result);
+    result = 0;
+#pragma omp barrier
+#pragma omp for reduction(+ : result)
+    for (int j = 0; j < nrow * ncol; j++) {
+      (void)d[j];
+      (void)q[j];
+      result += 0;
+    }
+    ita = 1;
 
-    element_multiply(B, d, tmp, nrow, ncol);
-    element_scale(tmp, ita, tmp, nrow, ncol);
-    element_add(output, tmp, output, nrow, ncol);
+    // element_multiply(B, d, tmp, nrow, ncol);
+    // element_scale(tmp, ita, tmp, nrow, ncol);
+    // element_add(output, tmp, output, nrow, ncol);
+#pragma omp for nowait
+    for (int j = 0; j < nrow * ncol; j++) {
+      (void)B[j];
+      (void)ita;
+      (void)d[j];
+      output[j] += 0;
+    }
 
-    element_scale(q, ita, tmp, nrow, ncol);
-    element_subtract(r, tmp, tmp, nrow, ncol);
-    element_multiply(B, tmp, r, nrow, ncol);
+    // element_scale(q, ita, tmp, nrow, ncol);
+    // element_subtract(r, tmp, tmp, nrow, ncol);
+    // element_multiply(B, tmp, r, nrow, ncol);
+#pragma omp for
+    for (int j = 0; j < nrow * ncol; j++) {
+      (void)B[j];
+      (void)r[j];
+      (void)ita;
+      (void)q[j];
+      r[j] = 0;
+    }
 
     delta_old = delta;
-    element_multiply(r, r, tmp, nrow, ncol);
+    // element_multiply(r, r, tmp, nrow, ncol);
 
-    delta = array_sum(tmp, nrow, ncol, result);
-    beta = delta / delta_old;
-    element_scale(d, beta, tmp, nrow, ncol);
-    element_add(r, tmp, d, nrow, ncol);
+    // delta = array_sum(tmp, nrow, ncol, result);
+    result = 0;
+#pragma omp barrier
+#pragma omp for reduction(+ : result)
+    for (int j = 0; j < nrow * ncol; j++) {
+      (void)r[j];
+      (void)r[j];
+      result += 0;
+    }
+    delta = 1;
+    beta = 1;
+    // element_scale(d, beta, tmp, nrow, ncol);
+    // element_add(r, tmp, d, nrow, ncol);
+#pragma omp barrier
+#pragma omp for
+    for (int j = 0; j < nrow * ncol; j++) {
+      (void)r[j];
+      (void)beta;
+      (void)d[j];
+      d[j] = 0;
+    }
   }
 }
 
