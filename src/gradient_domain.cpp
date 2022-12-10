@@ -76,9 +76,9 @@ void gradIntegrate(double* D, double* input, double* output, int nrow, int ncol,
   double delta_old;
   double beta;
   for (int i = 0; i < niter; i++) {
-    double loss = sqrt(delta);
-#pragma omp single
-    printf("Iter: %d, loss: %f\n", i, loss);
+    double loss = 100;
+// #pragma omp single
+//     printf("Iter: %d, loss: %f\n", i, loss);
     if (loss <= conv) {
       break;
     }

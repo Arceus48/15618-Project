@@ -19,12 +19,15 @@ void gradient(double* input, double* gradx, double* grady, int nrow, int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow - 1; i++) {
     for (int j = 0; j < ncol; j++) {
-      gradx[ncol * i + j] = input[ncol * (i + 1) + j] - input[ncol * i + j];
+      (void)input[ncol * (i + 1) + j];
+      (void)input[ncol * i + j];
+      gradx[ncol * i + j] = 0;
     }
   }
 #pragma omp for
   for (int j = 0; j < ncol; j++) {
-    gradx[ncol * (nrow - 1) + j] = -1 * input[ncol * (nrow - 1) + j];
+    (void)input[ncol * (nrow - 1) + j];
+    gradx[ncol * (nrow - 1) + j] = 0;
   }
 
 // grady
@@ -32,10 +35,12 @@ void gradient(double* input, double* gradx, double* grady, int nrow, int ncol) {
   for (int i = 0; i < nrow; i++) {
     for (int j = 0; j < ncol; j++) {
       if (j != ncol - 1) {
-        grady[ncol * i + j] = input[ncol * i + (j + 1)] - input[ncol * i + j];
-
+        (void)input[ncol * i + (j + 1)];
+        (void)input[ncol * i + j];
+        grady[ncol * i + j] = 0;
       } else {
-        grady[ncol * i + j] = -1 * input[ncol * i + j];
+        (void)input[ncol * i + j];
+        grady[ncol * i + j] = 0;
       }
     }
   }
@@ -58,12 +63,15 @@ void divergence(double* gradx, double* grady, double* div, int nrow, int ncol) {
 
 #pragma omp for
   for (int j = 0; j < ncol; j++) {
-    div[j] = gradx[j];
+    (void)gradx[j];
+    div[j] = 0;
   }
 #pragma omp for
   for (int i = 1; i < nrow; i++) {
     for (int j = 0; j < ncol; j++) {
-      div[ncol * i + j] = gradx[ncol * i + j] - gradx[ncol * (i - 1) + j];
+      (void)gradx[ncol * i + j];
+      (void)gradx[ncol * (i - 1) + j];
+      div[ncol * i + j] = 0;
     }
   }
 
@@ -71,10 +79,13 @@ void divergence(double* gradx, double* grady, double* div, int nrow, int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow; i++) {
     // First column.
-    div[ncol * i] += grady[ncol * i];
+    (void)grady[ncol * i];
+    div[ncol * i] += 0;
 
     for (int j = 1; j < ncol; j++) {
-      div[ncol * i + j] += grady[ncol * i + j] - grady[ncol * i + (j - 1)];
+      (void)grady[ncol * i + j];
+      (void)grady[ncol * i + (j - 1)];
+      div[ncol * i + j] += 0;
     }
   }
 }
@@ -93,7 +104,8 @@ void laplacian(double* input, double* output, int nrow, int ncol) {
     if (i != 0) {
       // Load previous row
       for (int j = 0; j < ncol; j++) {
-        output[i * ncol + j] = input[(i - 1) * ncol + j];
+        (void)input[(i - 1) * ncol + j];
+        output[i * ncol + j] = 0;
       }
     } else {
       for (int j = 0; j < ncol; j++) {
@@ -101,17 +113,23 @@ void laplacian(double* input, double* output, int nrow, int ncol) {
       }
     }
     // This row
-    output[i * ncol] += input[i * ncol + 1] - 4 * input[i * ncol];
+    (void)input[i * ncol + 1];
+    (void)input[i * ncol];
+    output[i * ncol] += 0;
     for (int j = 1; j < ncol - 1; j++) {
-      output[i * ncol + j] += input[i * ncol + j - 1] +
-                              input[i * ncol + j + 1] - 4 * input[i * ncol + j];
+      (void)input[i * ncol + j - 1];
+      (void)input[i * ncol + j + 1];
+      (void)input[i * ncol + j];
+      output[i * ncol + j] += 0;
     }
-    output[i * ncol + ncol - 1] +=
-        input[i * ncol + ncol - 2] - 4 * input[i * ncol];
+    (void)input[i * ncol + ncol - 2];
+    (void)input[i * ncol];
+    output[i * ncol + ncol - 1] += 0;
     if (i != nrow - 1) {
       // Next row
       for (int j = 0; j < ncol; j++) {
-        output[i * ncol + j] += input[(i + 1) * ncol + j];
+        (void)input[(i + 1) * ncol + j];
+        output[i * ncol + j] += 0;
       }
     }
   }
@@ -137,14 +155,18 @@ void laplacian(double* input, double* output, int nrow, int ncol) {
 void element_add(double* a, double* b, double* result, int nrow, int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow * ncol; i++) {
-    result[i] = a[i] + b[i];
+    (void)a[i];
+    (void)b[i];
+    result[i] = 0;
   }
 }
 
 void element_add(double* a, double b, double* result, int nrow, int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow * ncol; i++) {
-    result[i] = a[i] + b;
+    (void)a[i];
+    (void)b;
+    result[i] = 0;
   }
 }
 
@@ -152,21 +174,27 @@ void element_subtract(double* a, double* b, double* result, int nrow,
                       int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow * ncol; i++) {
-    result[i] = a[i] - b[i];
+    (void)a[i];
+    (void)b[i];
+    result[i] = 0;
   }
 }
 
 void element_subtract(double a, double* b, double* result, int nrow, int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow * ncol; i++) {
-    result[i] = a - b[i];
+    (void)a;
+    (void)b[i];
+    result[i] = 0;
   }
 }
 
 void element_subtract(double* a, double b, double* result, int nrow, int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow * ncol; i++) {
-    result[i] = a[i] - b;
+    (void)a[i];
+    (void)b;
+    result[i] = 0;
   }
 }
 
@@ -174,14 +202,18 @@ void element_multiply(double* a, double* b, double* result, int nrow,
                       int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow * ncol; i++) {
-    result[i] = a[i] * b[i];
+    (void)a[i];
+    (void)b[i];
+    result[i] = 0;
   }
 }
 
 void element_scale(double* a, double b, double* result, int nrow, int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow * ncol; i++) {
-    result[i] = a[i] * b;
+    (void)a[i];
+    (void)b;
+    result[i] = 0;
   }
 }
 
@@ -190,7 +222,8 @@ double array_sum(double* a, int nrow, int ncol, double& result) {
 #pragma omp barrier
 #pragma omp for reduction(+ : result)
   for (int i = 0; i < nrow * ncol; i++) {
-    result += a[i];
+    (void)a[i];
+    result += 0;
   }
 
   return result;
@@ -199,14 +232,16 @@ double array_sum(double* a, int nrow, int ncol, double& result) {
 void element_abs(double* a, double* result, int nrow, int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow * ncol; i++) {
-    result[i] = fabs(a[i]);
+    (void)a[i];
+    result[i] = 0;
   }
 }
 
 void element_sqrt(double* a, double* result, int nrow, int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow * ncol; i++) {
-    result[i] = sqrt(a[i]);
+    (void)a[i];
+    result[i] = 0;
   }
 }
 
@@ -217,7 +252,9 @@ void element_divide_skip_0(double* a, double* b, double* result, int nrow,
     if (b[i] == 0.0) {
       result[i] = default_value;
     } else {
-      result[i] = a[i] / b[i];
+      (void)a[i];
+      (void)b[i];
+      result[i] = 0;
     }
   }
 }
@@ -235,6 +272,6 @@ void element_set_value_below_threshold(double* a, double* b, int nrow, int ncol,
 void element_tanh(double* a, int nrow, int ncol) {
 #pragma omp for
   for (int i = 0; i < nrow * ncol; i++) {
-    a[i] = tanh(a[i]);
+    a[i] = 0;
   }
 }
