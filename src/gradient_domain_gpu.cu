@@ -202,7 +202,7 @@ void gradIntegrate(double *gradX, double *gradY,
     for (int i = 0; i < niter; i++) {
         double loss = sqrt(delta);
     // #pragma omp single
-        printf("Iter: %d, loss: %f\n", i, loss);
+        // printf("Iter: %d, loss: %f\n", i, loss);
         if (loss <= conv) {
             break;
         }
@@ -358,9 +358,17 @@ void gradInteRgb(double* fused, double** argb, double** frgb, double** output,
     }
 }
 
-// void printGrad(double *fused, int nrow, int ncol) {
-//     double **fuse_gradX = 
-// }
+void printGrad(double *fused, int nrow, int ncol) {
+    double **fuse_gradX = new double* [3];
+    for (int i = 0; i < 3; ++i) {
+        fuse_gradX[i] = new double[nrow * ncol];
+        cudaMemcpy(fuse_gradX[i], fused + 2 * i * nrow * ncol, nrow * ncol * sizeof(double), cudaMemcpyDeviceToHost);
+        for (int j = 0; j < nrow * ncol; ++j) {
+            fuse_gradX[i][j] *= 30.0;
+        }
+    }
+    saveImage(fuse_gradX, "fuse_gradX.png", nrow, ncol);
+}
 
 int main(int argc, char** argv) {
   if (argc != 9) {
@@ -429,7 +437,8 @@ int main(int argc, char** argv) {
   auto start = std::chrono::high_resolution_clock::now();
   fuseGradRgb(argb_gpu, frgb_gpu, gradA, gradF, fused, sig, thld, nrow, ncol);
   auto end1 = std::chrono::high_resolution_clock::now();
-  gradInteRgb(fused, argb, frgb, output_gpu, bound_cond, init_opt, nrow, ncol, conv,
+//   printGrad(fused, nrow, ncol);
+  gradInteRgb(fused, argb_gpu, frgb_gpu, output_gpu, bound_cond, init_opt, nrow, ncol, conv,
               niter);
   auto end = std::chrono::high_resolution_clock::now();
 
