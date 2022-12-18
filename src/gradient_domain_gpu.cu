@@ -67,7 +67,7 @@ void array_recursive_reduce(double* a, double* result, int nrow, int ncol) {
 
     reduce<<<(total_num + THREADS_PER_BLK - 1) / THREADS_PER_BLK,
              THREADS_PER_BLK>>>(a, result, total_num);
-    cudaCheckError(cudaDeviceSynchronize());
+    // cudaCheckError(cudaDeviceSynchronize());
     total_num /= THREADS_PER_BLK;
     cudaMemcpy(a, result, total_num * sizeof(double), cudaMemcpyDeviceToDevice);
   }
@@ -92,7 +92,7 @@ double* D;
 double result;
 
 // Grad Integ init stage kernel.
-__global__ void init_kernel(double* gradX, double* gradY, double* D,
+__global__ void init_kernel(double* gradX, double* gradY,
                             double* input, double* output, double* B, double* r,
                             double* d, double* tmp, int nrow, int ncol) {
   int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -104,10 +104,11 @@ __global__ void init_kernel(double* gradX, double* gradY, double* D,
 
   bool is_boundary =
       (row == 0 || row + 1 == nrow || col == 0 || col + 1 == ncol);
+  double div;
   if (is_boundary) {
-    D[linear_idx] = 0.0;
+    div = 0.0;
   } else {
-    divergence(gradX, gradY, D, ncol, linear_idx);
+    div = divergence(gradX, gradY, ncol, linear_idx);
   }
 
   B[linear_idx] = 0.0;
@@ -129,7 +130,7 @@ __global__ void init_kernel(double* gradX, double* gradY, double* D,
   }
 
   laplacian(input, r, ncol, linear_idx);
-  element_subtract(D, r, r, linear_idx);
+  element_subtract(div, r, r, linear_idx);
   element_multiply(B, r, r, linear_idx);
 
   d[linear_idx] = r[linear_idx];
@@ -170,13 +171,18 @@ __global__ void inte_stage2(double* B, double* d, double* tmp, double* output,
   if (row >= nrow || col >= ncol) {
     return;
   }
-  element_multiply(B, d, tmp, linear_idx);
-  element_scale(tmp, ita, tmp, linear_idx);
-  element_add(output, tmp, output, linear_idx);
+//   element_multiply(B, d, tmp, linear_idx);
+//   element_scale(tmp, ita, tmp, linear_idx);
+  double temp = B[linear_idx] * d[linear_idx];
+  temp = temp * ita;
+  element_add(output, temp, output, linear_idx);
 
-  element_scale(q, ita, tmp, linear_idx);
-  element_subtract(r, tmp, tmp, linear_idx);
-  element_multiply(B, tmp, r, linear_idx);
+  temp = q[linear_idx] * ita;
+
+//   element_scale(q, ita, tmp, linear_idx);
+//   element_subtract(r, tmp, tmp, linear_idx);
+  temp = r[linear_idx] - temp;
+  element_scale(B, temp, r, linear_idx);
 
   element_multiply(r, r, tmp, linear_idx);
 }
@@ -191,8 +197,10 @@ __global__ void inte_stage3(double* d, double* tmp, double* r, double beta,
     return;
   }
 
-  element_scale(d, beta, tmp, linear_idx);
-  element_add(r, tmp, d, linear_idx);
+  double temp = d[linear_idx] * beta;
+
+//   element_scale(d, beta, tmp, linear_idx);
+  element_add(r, temp, d, linear_idx);
 }
 
 /**
@@ -206,14 +214,14 @@ __global__ void inte_stage3(double* d, double* tmp, double* r, double beta,
  * @param[in] conv
  * @param[in] niter
  */
-void gradIntegrate(double* gradX, double* gradY, double* D, double* input,
+void gradIntegrate(double* gradX, double* gradY, double* input,
                    double* output, int nrow, int ncol, double conv = 1e-3,
                    int niter = 2000) {
   dim3 gridDim((ncol + BLK_WIDTH - 1) / BLK_WIDTH,
                (nrow + BLK_WIDTH - 1) / BLK_WIDTH);
   dim3 blockDim(BLK_WIDTH, BLK_WIDTH);
 
-  init_kernel<<<gridDim, blockDim>>>(gradX, gradY, D, input, output, B, r, d,
+  init_kernel<<<gridDim, blockDim>>>(gradX, gradY, input, output, B, r, d,
                                      tmp, nrow, ncol);
 
   double delta;
@@ -352,7 +360,7 @@ void fuseGradRgb(double** A, double** F, double* gradA, double* gradF,
         A[i], F[i], sig, thld, gradA + i * 2 * nrow * ncol,
         gradF + i * 2 * nrow * ncol, fused + i * 2 * nrow * ncol, tmp1, tmp2,
         tmp3, nume, denom, M, Ws, one_M, one_Ws, nrow, ncol);
-    cudaCheckError(cudaDeviceSynchronize());
+    // cudaCheckError(cudaDeviceSynchronize());
   }
 }
 
@@ -378,7 +386,7 @@ void gradInteRgb(double* fused, double** argb, double** frgb, double** output,
   // input pointer should be frgb.
   for (int i = 2; i >= 0; i--) {
     gradIntegrate(fused + i * 2 * nrow * ncol,
-                  fused + (i * 2 + 1) * nrow * ncol, D, frgb[i], output[i],
+                  fused + (i * 2 + 1) * nrow * ncol, frgb[i], output[i],
                   nrow, ncol, conv, niter);
   }
 }
@@ -427,7 +435,7 @@ int main(int argc, char** argv) {
     cudaMemcpy(frgb_gpu[i], frgb[i], nrow * ncol * sizeof(double),
                cudaMemcpyHostToDevice);
   }
-  cudaCheckError(cudaDeviceSynchronize());
+//   cudaCheckError(cudaDeviceSynchronize());
   // Allocate buffers
   double *gradA, *gradF, *fused;
   cudaMalloc(&gradA, 3 * 2 * nrow * ncol * sizeof(double));
@@ -441,12 +449,12 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 3; i++) {
     cudaMalloc(output_gpu + i, nrow * ncol * sizeof(double));
   }
-  cudaCheckError(cudaDeviceSynchronize());
+//   cudaCheckError(cudaDeviceSynchronize());
   cout << nrow << " " << ncol << endl;
   // Buffers for other functions
   cudaMalloc(&tmp1, nrow * ncol * 2 * sizeof(double));
-  cudaMalloc(&tmp2, nrow * ncol * sizeof(double));
-  cudaMalloc(&tmp3, nrow * ncol * sizeof(double));
+  cudaMalloc(&tmp2, nrow * ncol * 2 * sizeof(double));
+  cudaMalloc(&tmp3, nrow * ncol * 2 * sizeof(double));
   cudaMalloc(&nume, nrow * ncol * sizeof(double));
   cudaMalloc(&denom, nrow * ncol * sizeof(double));
   cudaMalloc(&M, nrow * ncol * sizeof(double));
@@ -458,12 +466,11 @@ int main(int argc, char** argv) {
   cudaMalloc(&tmp, nrow * ncol * sizeof(double));
   cudaMalloc(&q, nrow * ncol * sizeof(double));
   cudaMalloc(&d, nrow * ncol * sizeof(double));
-  cudaMalloc(&D, nrow * ncol * sizeof(double));
-  cudaCheckError(cudaDeviceSynchronize());
+//   cudaCheckError(cudaDeviceSynchronize());
   // Computation
   auto start = std::chrono::high_resolution_clock::now();
   fuseGradRgb(argb_gpu, frgb_gpu, gradA, gradF, fused, sig, thld, nrow, ncol);
-  cudaCheckError(cudaDeviceSynchronize());
+//   cudaCheckError(cudaDeviceSynchronize());
   auto end1 = std::chrono::high_resolution_clock::now();
   //   printGrad(fused, nrow, ncol);
   gradInteRgb(fused, argb_gpu, frgb_gpu, output_gpu, bound_cond, init_opt, nrow,
