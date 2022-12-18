@@ -67,7 +67,7 @@ void array_recursive_reduce(double* a, double* result, int nrow, int ncol) {
 
     reduce<<<(total_num + THREADS_PER_BLK - 1) / THREADS_PER_BLK,
              THREADS_PER_BLK>>>(a, result, total_num);
-    cudaCheckError(cudaDeviceSynchronize());
+    // cudaCheckError(cudaDeviceSynchronize());
     total_num /= THREADS_PER_BLK;
     cudaMemcpy(a, result, total_num * sizeof(double), cudaMemcpyDeviceToDevice);
   }
@@ -226,7 +226,7 @@ void gradIntegrate(double* gradX, double* gradY, double* D, double* input,
   for (int i = 0; i < niter; i++) {
     double loss = sqrt(delta);
     // #pragma omp single
-    printf("Iter: %d, loss: %f\n", i, loss);
+    // printf("Iter: %d, loss: %f\n", i, loss);
     if (loss <= conv) {
       break;
     }
@@ -352,7 +352,7 @@ void fuseGradRgb(double** A, double** F, double* gradA, double* gradF,
         A[i], F[i], sig, thld, gradA + i * 2 * nrow * ncol,
         gradF + i * 2 * nrow * ncol, fused + i * 2 * nrow * ncol, tmp1, tmp2,
         tmp3, nume, denom, M, Ws, one_M, one_Ws, nrow, ncol);
-    cudaCheckError(cudaDeviceSynchronize());
+    // cudaCheckError(cudaDeviceSynchronize());
   }
 }
 
@@ -427,7 +427,7 @@ int main(int argc, char** argv) {
     cudaMemcpy(frgb_gpu[i], frgb[i], nrow * ncol * sizeof(double),
                cudaMemcpyHostToDevice);
   }
-  cudaCheckError(cudaDeviceSynchronize());
+//   cudaCheckError(cudaDeviceSynchronize());
   // Allocate buffers
   double *gradA, *gradF, *fused;
   cudaMalloc(&gradA, 3 * 2 * nrow * ncol * sizeof(double));
@@ -441,12 +441,12 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 3; i++) {
     cudaMalloc(output_gpu + i, nrow * ncol * sizeof(double));
   }
-  cudaCheckError(cudaDeviceSynchronize());
+//   cudaCheckError(cudaDeviceSynchronize());
   cout << nrow << " " << ncol << endl;
   // Buffers for other functions
   cudaMalloc(&tmp1, nrow * ncol * 2 * sizeof(double));
-  cudaMalloc(&tmp2, nrow * ncol * sizeof(double));
-  cudaMalloc(&tmp3, nrow * ncol * sizeof(double));
+  cudaMalloc(&tmp2, nrow * ncol * 2 * sizeof(double));
+  cudaMalloc(&tmp3, nrow * ncol * 2 * sizeof(double));
   cudaMalloc(&nume, nrow * ncol * sizeof(double));
   cudaMalloc(&denom, nrow * ncol * sizeof(double));
   cudaMalloc(&M, nrow * ncol * sizeof(double));
@@ -459,11 +459,11 @@ int main(int argc, char** argv) {
   cudaMalloc(&q, nrow * ncol * sizeof(double));
   cudaMalloc(&d, nrow * ncol * sizeof(double));
   cudaMalloc(&D, nrow * ncol * sizeof(double));
-  cudaCheckError(cudaDeviceSynchronize());
+//   cudaCheckError(cudaDeviceSynchronize());
   // Computation
   auto start = std::chrono::high_resolution_clock::now();
   fuseGradRgb(argb_gpu, frgb_gpu, gradA, gradF, fused, sig, thld, nrow, ncol);
-  cudaCheckError(cudaDeviceSynchronize());
+//   cudaCheckError(cudaDeviceSynchronize());
   auto end1 = std::chrono::high_resolution_clock::now();
   //   printGrad(fused, nrow, ncol);
   gradInteRgb(fused, argb_gpu, frgb_gpu, output_gpu, bound_cond, init_opt, nrow,
