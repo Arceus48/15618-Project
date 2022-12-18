@@ -15,7 +15,7 @@ __device__ __inline__ void gradienty(double* input,
 __device__ __inline__ void divergence(
     double* gradx, double* grady, double* div, int ncol, int linear_idx
 ) {
-    div[linear_idx] = 0.0
+    div[linear_idx] = 0.0;
     div[linear_idx] += gradx[linear_idx + 1] - gradx[linear_idx];
     div[linear_idx] += grady[linear_idx + ncol] - grady[linear_idx];
 }
