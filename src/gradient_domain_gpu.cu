@@ -234,7 +234,7 @@ void gradIntegrate(double* gradX, double* gradY, double* input,
   for (int i = 0; i < niter; i++) {
     double loss = sqrt(delta);
     // #pragma omp single
-    printf("Iter: %d, loss: %f\n", i, loss);
+    // printf("Iter: %d, loss: %f\n", i, loss);
     if (loss <= conv) {
       break;
     }
