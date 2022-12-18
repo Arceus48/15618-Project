@@ -44,7 +44,6 @@ __global__ void reduce(double* g_idata, double* g_odata, int total_num) {
   //   if (i >= total_num) {
   //     return;
   //   }
-  printf("%d\n", tid);
   sdata[tid] = g_idata[i];
   __syncthreads();
   // do reduction in shared mem
@@ -56,7 +55,6 @@ __global__ void reduce(double* g_idata, double* g_odata, int total_num) {
   }
   // write result for this block to global mem
   if (tid == 0) {
-    printf("Copy\n");
     g_odata[blockIdx.x] = sdata[0];
   }
 }
@@ -65,14 +63,12 @@ void array_recursive_reduce(double* a, double* result, int nrow, int ncol) {
   int total_num = 1011;
 
   while (total_num > 0) {
-    printf("Total num: %d\n", total_num);
     cudaMemset(result, 0, sizeof(double) * nrow * ncol);
 
     reduce<<<(total_num + THREADS_PER_BLK - 1) / THREADS_PER_BLK,
              THREADS_PER_BLK>>>(a, result, total_num);
     cudaCheckError(cudaDeviceSynchronize());
     total_num /= THREADS_PER_BLK;
-    break;
     cudaMemcpy(a, result, total_num * sizeof(double), cudaMemcpyDeviceToDevice);
   }
 }
