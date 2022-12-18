@@ -58,12 +58,12 @@ __device__ __inline__ void  element_multiply(
 }
 
 __device__ __inline__ void  element_divide_skip_0(
-    double* a, double* b,
+    double a, double b,
     double* result, int linear_idx, double default_value) {
-    if (b[linear_idx] == 0.) {
-        result[linear_idx] = default_value;
+    if (b == 0.) {
+        *result = default_value;
     } else {
-        result[linear_idx] = a[linear_idx] / b[linear_idx];
+        *result = a / b;
     }
 }
 

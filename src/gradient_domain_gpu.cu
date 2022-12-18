@@ -73,15 +73,8 @@ void array_recursive_reduce(double* a, double* result, int nrow, int ncol) {
   }
 }
 
-double* tmp1;
 double* tmp2;
 double* tmp3;
-double* nume;
-double* denom;
-double* M;
-double* Ws;
-double* one_M;
-double* one_Ws;
 
 double* B;
 double* r;
@@ -92,9 +85,9 @@ double* D;
 double result;
 
 // Grad Integ init stage kernel.
-__global__ void init_kernel(double* gradX, double* gradY,
-                            double* input, double* output, double* B, double* r,
-                            double* d, double* tmp, int nrow, int ncol) {
+__global__ void init_kernel(double* gradX, double* gradY, double* input,
+                            double* output, double* B, double* r, double* d,
+                            double* tmp, int nrow, int ncol) {
   int row = blockIdx.y * blockDim.y + threadIdx.y;
   int col = blockIdx.x * blockDim.x + threadIdx.x;
   int linear_idx = row * ncol + col;
@@ -171,16 +164,16 @@ __global__ void inte_stage2(double* B, double* d, double* tmp, double* output,
   if (row >= nrow || col >= ncol) {
     return;
   }
-//   element_multiply(B, d, tmp, linear_idx);
-//   element_scale(tmp, ita, tmp, linear_idx);
+  //   element_multiply(B, d, tmp, linear_idx);
+  //   element_scale(tmp, ita, tmp, linear_idx);
   double temp = B[linear_idx] * d[linear_idx];
   temp = temp * ita;
   element_add(output, temp, output, linear_idx);
 
   temp = q[linear_idx] * ita;
 
-//   element_scale(q, ita, tmp, linear_idx);
-//   element_subtract(r, tmp, tmp, linear_idx);
+  //   element_scale(q, ita, tmp, linear_idx);
+  //   element_subtract(r, tmp, tmp, linear_idx);
   temp = r[linear_idx] - temp;
   element_scale(B, temp, r, linear_idx);
 
@@ -199,7 +192,7 @@ __global__ void inte_stage3(double* d, double* tmp, double* r, double beta,
 
   double temp = d[linear_idx] * beta;
 
-//   element_scale(d, beta, tmp, linear_idx);
+  //   element_scale(d, beta, tmp, linear_idx);
   element_add(r, temp, d, linear_idx);
 }
 
@@ -214,23 +207,22 @@ __global__ void inte_stage3(double* d, double* tmp, double* r, double beta,
  * @param[in] conv
  * @param[in] niter
  */
-void gradIntegrate(double* gradX, double* gradY, double* input,
-                   double* output, int nrow, int ncol, double conv = 1e-3,
-                   int niter = 2000) {
+void gradIntegrate(double* gradX, double* gradY, double* input, double* output,
+                   int nrow, int ncol, double conv = 1e-3, int niter = 2000) {
   dim3 gridDim((ncol + BLK_WIDTH - 1) / BLK_WIDTH,
                (nrow + BLK_WIDTH - 1) / BLK_WIDTH);
   dim3 blockDim(BLK_WIDTH, BLK_WIDTH);
 
-  init_kernel<<<gridDim, blockDim>>>(gradX, gradY, input, output, B, r, d,
-                                     tmp, nrow, ncol);
+  init_kernel<<<gridDim, blockDim>>>(gradX, gradY, input, output, B, r, d, tmp,
+                                     nrow, ncol);
 
   double delta;
   double ita;
   double delta_old;
   double beta;
 
-  array_recursive_reduce(tmp, tmp1, nrow, ncol);
-  cudaMemcpy(&delta, tmp1, sizeof(double), cudaMemcpyDeviceToHost);
+  array_recursive_reduce(tmp, tmp2, nrow, ncol);
+  cudaMemcpy(&delta, tmp2, sizeof(double), cudaMemcpyDeviceToHost);
   for (int i = 0; i < niter; i++) {
     double loss = sqrt(delta);
     // #pragma omp single
@@ -241,15 +233,15 @@ void gradIntegrate(double* gradX, double* gradY, double* input,
 
     inte_stage1<<<gridDim, blockDim>>>(d, q, tmp, nrow, ncol);
 
-    array_recursive_reduce(tmp, tmp1, nrow, ncol);
-    cudaMemcpy(&ita, tmp1, sizeof(double), cudaMemcpyDeviceToHost);
+    array_recursive_reduce(tmp, tmp2, nrow, ncol);
+    cudaMemcpy(&ita, tmp2, sizeof(double), cudaMemcpyDeviceToHost);
     ita = delta / ita;
 
     inte_stage2<<<gridDim, blockDim>>>(B, d, tmp, output, q, r, ita, nrow,
                                        ncol);
-    array_recursive_reduce(tmp, tmp1, nrow, ncol);
+    array_recursive_reduce(tmp, tmp2, nrow, ncol);
     delta_old = delta;
-    cudaMemcpy(&delta, tmp1, sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&delta, tmp2, sizeof(double), cudaMemcpyDeviceToHost);
     beta = delta / delta_old;
     inte_stage3<<<gridDim, blockDim>>>(d, tmp, r, beta, nrow, ncol);
   }
@@ -273,68 +265,40 @@ void gradIntegrate(double* gradX, double* gradY, double* input,
  */
 __global__ void fuseGrad(double* A, double* F, double sig, double thld,
                          double* gradA, double* gradF, double* fused,
-                         double* tmp1, double* tmp2, double* tmp3, double* nume,
-                         double* denom, double* M, double* Ws, double* one_M,
-                         double* one_Ws, int nrow, int ncol) {
+                         double* tmp2, double* tmp3, int nrow, int ncol) {
   int row = blockIdx.y * blockDim.y + threadIdx.y;
   int col = blockIdx.x * blockDim.x + threadIdx.x;
-  int linear_idx = row * ncol + col;
+  int i = row * ncol + col;
   if (row <= 0 || row + 1 >= nrow || col <= 0 || col + 1 >= ncol) {
     return;
   }
 
-  gradientx(A, gradA, ncol, linear_idx);
-  gradienty(A, gradA + nrow * ncol, ncol, linear_idx);
-  gradientx(F, gradF, ncol, linear_idx);
-  gradienty(F, gradF + nrow * ncol, ncol, linear_idx);
-
-  element_multiply(gradA, gradF, tmp1, linear_idx);
-  element_multiply(gradA + nrow * ncol, gradF + nrow * ncol, tmp1 + nrow * ncol,
-                   linear_idx);
-  element_add(tmp1, tmp1 + nrow * ncol, tmp2, linear_idx);
-  element_abs(tmp2, nume, linear_idx);
-
-  element_multiply(gradA, gradA, tmp2, linear_idx);
-  element_multiply(gradA + nrow * ncol, gradA + nrow * ncol, tmp2 + nrow * ncol,
-                   linear_idx);
-  element_add(tmp2, tmp2 + nrow * ncol, tmp2, linear_idx);
-  element_multiply(gradF, gradF, tmp3, linear_idx);
-  element_multiply(gradF + nrow * ncol, gradF + nrow * ncol, tmp3 + nrow * ncol,
-                   linear_idx);
-  element_add(tmp3, tmp3 + nrow * ncol, tmp3, linear_idx);
-  element_multiply(tmp2, tmp3, denom, linear_idx);
-  element_sqrt(denom, denom, linear_idx);
-
+  gradientx(A, gradA, ncol, i);
+  gradienty(A, gradA + nrow * ncol, ncol, i);
+  gradientx(F, gradF, ncol, i);
+  gradienty(F, gradF + nrow * ncol, ncol, i);
+  double M, Ws;
+  double nume, denom;
+  nume = fabs(gradA[i] * gradF[i] +
+              gradA[i + nrow * ncol] * gradF[i + nrow * ncol]);
+  tmp2[i] =
+      gradA[i] * gradA[i] + gradA[i + nrow * ncol] * gradA[i + nrow * ncol];
+  tmp3[i] =
+      gradF[i] * gradF[i] + gradF[i + nrow * ncol] * gradF[i + nrow * ncol];
+  denom = sqrt(tmp2[i] * tmp3[i]);
   // tmp2 holds magA ^ 2, tmp3 holds magF ^ 2
-  element_divide_skip_0(nume, denom, M, linear_idx, 0);
-  element_set_value_below_threshold(M, tmp2, linear_idx, 5e-3 * 5e-3, 1.0);
-  element_set_value_below_threshold(M, tmp3, linear_idx, 5e-3 * 5e-3, 0.0);
-
-  element_subtract(F, thld, tmp2, linear_idx);
-  element_scale(tmp2, sig, Ws, linear_idx);
-  element_tanh(Ws, linear_idx);
-
-  element_add(Ws, 1.0, Ws, linear_idx);
-  element_scale(Ws, 0.5, Ws, linear_idx);
-
-  element_subtract(1.0, Ws, one_Ws, linear_idx);
-  element_subtract(1.0, M, one_M, linear_idx);
-
-  // Merge into fuse. Done half by half to avoid stacking.
-  element_multiply(one_M, gradA, fused, linear_idx);
-  element_multiply(M, gradF, tmp2, linear_idx);
-  element_add(tmp2, fused, fused, linear_idx);
-  element_multiply(fused, one_Ws, fused, linear_idx);
-  element_multiply(Ws, gradA, tmp3, linear_idx);
-  element_add(fused, tmp3, fused, linear_idx);
-
-  element_multiply(one_M, gradA + nrow * ncol, fused + nrow * ncol, linear_idx);
-  element_multiply(M, gradF + nrow * ncol, tmp2, linear_idx);
-  element_add(tmp2, fused + nrow * ncol, fused + nrow * ncol, linear_idx);
-  element_multiply(fused + nrow * ncol, one_Ws, fused + nrow * ncol,
-                   linear_idx);
-  element_multiply(Ws, gradA + nrow * ncol, tmp3, linear_idx);
-  element_add(fused + nrow * ncol, tmp3, fused + nrow * ncol, linear_idx);
+  element_divide_skip_0(nume, denom, &M, i, 0);
+  if (tmp2[i] < 5e-3 * 5e-3) {
+    M = 1;
+  }
+  if (tmp3[i] < 5e-3 * 5e-3) {
+    M = 0;
+  }
+  Ws = 0.5 * (tanh(sig * (F[i] - thld)) + 1);
+  fused[i] = Ws * gradA[i] + (1 - Ws) * (M * gradF[i] + (1 - M) * gradA[i]);
+  fused[i + nrow * ncol] = Ws * gradA[i + nrow * ncol] +
+                           (1 - Ws) * (M * gradF[i + nrow * ncol] +
+                                       (1 - M) * gradA[i + nrow * ncol]);
 }
 
 /**
@@ -355,11 +319,11 @@ void fuseGradRgb(double** A, double** F, double* gradA, double* gradF,
                (nrow + BLK_WIDTH - 1) / BLK_WIDTH);
   dim3 blockDim(BLK_WIDTH, BLK_WIDTH);
   for (int i = 2; i >= 0; i--) {
-    printf("Fuse grad %d\n", i);
+    // printf("Fuse grad %d\n", i);
     fuseGrad<<<gridDim, blockDim>>>(
         A[i], F[i], sig, thld, gradA + i * 2 * nrow * ncol,
-        gradF + i * 2 * nrow * ncol, fused + i * 2 * nrow * ncol, tmp1, tmp2,
-        tmp3, nume, denom, M, Ws, one_M, one_Ws, nrow, ncol);
+        gradF + i * 2 * nrow * ncol, fused + i * 2 * nrow * ncol, tmp2, tmp3,
+        nrow, ncol);
     // cudaCheckError(cudaDeviceSynchronize());
   }
 }
@@ -386,8 +350,8 @@ void gradInteRgb(double* fused, double** argb, double** frgb, double** output,
   // input pointer should be frgb.
   for (int i = 2; i >= 0; i--) {
     gradIntegrate(fused + i * 2 * nrow * ncol,
-                  fused + (i * 2 + 1) * nrow * ncol, frgb[i], output[i],
-                  nrow, ncol, conv, niter);
+                  fused + (i * 2 + 1) * nrow * ncol, frgb[i], output[i], nrow,
+                  ncol, conv, niter);
   }
 }
 
@@ -435,7 +399,7 @@ int main(int argc, char** argv) {
     cudaMemcpy(frgb_gpu[i], frgb[i], nrow * ncol * sizeof(double),
                cudaMemcpyHostToDevice);
   }
-//   cudaCheckError(cudaDeviceSynchronize());
+  //   cudaCheckError(cudaDeviceSynchronize());
   // Allocate buffers
   double *gradA, *gradF, *fused;
   cudaMalloc(&gradA, 3 * 2 * nrow * ncol * sizeof(double));
@@ -449,28 +413,21 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 3; i++) {
     cudaMalloc(output_gpu + i, nrow * ncol * sizeof(double));
   }
-//   cudaCheckError(cudaDeviceSynchronize());
+  //   cudaCheckError(cudaDeviceSynchronize());
   cout << nrow << " " << ncol << endl;
   // Buffers for other functions
-  cudaMalloc(&tmp1, nrow * ncol * 2 * sizeof(double));
-  cudaMalloc(&tmp2, nrow * ncol * 2 * sizeof(double));
-  cudaMalloc(&tmp3, nrow * ncol * 2 * sizeof(double));
-  cudaMalloc(&nume, nrow * ncol * sizeof(double));
-  cudaMalloc(&denom, nrow * ncol * sizeof(double));
-  cudaMalloc(&M, nrow * ncol * sizeof(double));
-  cudaMalloc(&Ws, nrow * ncol * sizeof(double));
-  cudaMalloc(&one_M, nrow * ncol * sizeof(double));
-  cudaMalloc(&one_Ws, nrow * ncol * sizeof(double));
+  cudaMalloc(&tmp2, nrow * ncol * sizeof(double));
+  cudaMalloc(&tmp3, nrow * ncol * sizeof(double));
   cudaMalloc(&B, nrow * ncol * sizeof(double));
   cudaMalloc(&r, nrow * ncol * sizeof(double));
   cudaMalloc(&tmp, nrow * ncol * sizeof(double));
   cudaMalloc(&q, nrow * ncol * sizeof(double));
   cudaMalloc(&d, nrow * ncol * sizeof(double));
-//   cudaCheckError(cudaDeviceSynchronize());
+  //   cudaCheckError(cudaDeviceSynchronize());
   // Computation
   auto start = std::chrono::high_resolution_clock::now();
   fuseGradRgb(argb_gpu, frgb_gpu, gradA, gradF, fused, sig, thld, nrow, ncol);
-//   cudaCheckError(cudaDeviceSynchronize());
+  //   cudaCheckError(cudaDeviceSynchronize());
   auto end1 = std::chrono::high_resolution_clock::now();
   //   printGrad(fused, nrow, ncol);
   gradInteRgb(fused, argb_gpu, frgb_gpu, output_gpu, bound_cond, init_opt, nrow,
