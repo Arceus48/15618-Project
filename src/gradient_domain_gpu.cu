@@ -427,11 +427,12 @@ int main(int argc, char** argv) {
   // Computation
   auto start = std::chrono::high_resolution_clock::now();
   fuseGradRgb(argb_gpu, frgb_gpu, gradA, gradF, fused, sig, thld, nrow, ncol);
-  //   cudaCheckError(cudaDeviceSynchronize());
+  cudaCheckError(cudaDeviceSynchronize());
   auto end1 = std::chrono::high_resolution_clock::now();
   //   printGrad(fused, nrow, ncol);
   gradInteRgb(fused, argb_gpu, frgb_gpu, output_gpu, bound_cond, init_opt, nrow,
               ncol, conv, niter);
+  cudaCheckError(cudaDeviceSynchronize());
   auto end = std::chrono::high_resolution_clock::now();
 
   printf("Part 1: %ld ms, Part 2: %ld ms\n",
