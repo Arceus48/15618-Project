@@ -1,16 +1,27 @@
 CC = g++
 CXXFLAGS = -O2 -std=c++17 -Wall -Wextra
 INCLUDES = -I$$HOME/opencv_install/include/opencv4
-LDFLAGS = -L$$HOME/opencv_install/lib
-LDLIBS = -lopencv_imgcodecs -lopencv_core -fopenmp
+LDFLAGS = -L$$HOME/opencv_install/lib -L/usr/local/cuda-11.7/lib64/
+LDLIBS = -lopencv_imgcodecs -lopencv_core -fopenmp -lcudart
+NVCC=nvcc
+NVCCFLAGS=-O3 -m64 --gpu-architecture compute_61 -ccbin /usr/bin/gcc
 
-all: gradient_domain
+######
+# CU_FILES   := saxpy.cu
+######
+
+all: gradient_domain gradient_domain_gpu
 
 gradient_domain: data_util.o math_util.o gradient_domain.o
 	$(CC) $(CXXFLAGS) -o $@ $^ $(INCLUDES) $(LDFLAGS) $(LDLIBS)
 
+gradient_domain_gpu: data_util.o math_util_gpu.o gradient_domain_gpu.o
+
 gradient_domain.o: gradient_domain.cpp
 	$(CC) $(CXXFLAGS) -c -o $@ $^ $(INCLUDES) $(LDFLAGS) $(LDLIBS)
+
+gradient_domain_gpu.o: gradient_domain_gpu.cu
+	$(NVCC) $(NVCCFLAGS) -c -o $@ $^ $(INCLUDES) $(LDFLAGS) $(LDLIBS)
 
 data_util.o: data_util.cpp
 	$(CC) $(CXXFLAGS) -c -o $@ $^ $(INCLUDES) $(LDFLAGS) $(LDLIBS)
@@ -21,4 +32,4 @@ math_util.o: math_util.cpp
 .PHONY: clean
 
 clean:
-	rm *.o gradient_domain
+	rm *.o gradient_domain gradient_domain_gpu

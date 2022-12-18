@@ -1,0 +1,98 @@
+#include <math.h>
+#include <stdio.h>
+
+// We can assume the boundary check always happens in the callers.
+__device__ __inline__ void gradientx(double* input, double* gradx,
+    int ncol, int linear_idx) {
+    gradx[linear_idx] = input[linear_idx + 1] - input[linear_idx];
+}
+
+__device__ __inline__ void gradienty(double* input,
+    double* grady, int ncol, int linear_idx) {
+    grady[linear_idx] = input[linear_idx + ncol] - input[linear_idx];
+}
+
+__device__ __inline__ void divergence(
+    double* gradx, double* grady, double* div, int ncol, int linear_idx
+) {
+    div[linear_idx] = 0.0
+    div[linear_idx] += gradx[linear_idx + 1] - gradx[linear_idx];
+    div[linear_idx] += grady[linear_idx + ncol] - grady[linear_idx];
+}
+
+__device__ __inline__ void laplacian(
+    double* input, double* output, int ncol, int linear_idx
+) {
+    output[linear_idx] = input[linear_idx - 1] + input[linear_idx + 1]
+        + input[linear_idx + ncol] + input[linear_idx - ncol]
+        - 4 * input[linear_idx];
+}
+
+__device__ __inline__ void  element_add(
+    double* a, double* b, double* result, int linear_idx) {
+    result[linear_idx] = a[linear_idx] + b[linear_idx];
+}
+
+__device__ __inline__ void  element_add(
+    double* a, double b, double* result, int linear_idx) {
+    result[linear_idx] = a[linear_idx] + b;
+}
+
+__device__ __inline__ void  element_subtract(
+    double* a, double* b, double* result, int linear_idx) {
+    result[linear_idx] = a[linear_idx] - b[linear_idx];
+}
+
+__device__ __inline__ void  element_subtract(
+    double a, double* b, double* result, int linear_idx) {
+    result[linear_idx] = a - b[linear_idx];
+}
+
+__device__ __inline__ void  element_subtract(
+    double* a, double b, double* result, int linear_idx) {
+    result[linear_idx] = a[linear_idx] - b;
+}
+
+__device__ __inline__ void  element_multiply(
+    double* a, double* b, double* result, int linear_idx) {
+    result[linear_idx] = a[linear_idx] * b[linear_idx];
+}
+
+__device__ __inline__ void  element_divide_skip_0(
+    double* a, double* b,
+    double* result, int linear_idx, double default_value) {
+    if (b[linear_idx] == 0.) {
+        result[linear_idx] = default_value;
+    } else {
+        result[linear_idx] = a[linear_idx] / b[linear_idx];
+    }
+}
+
+__device__ __inline__ void  element_scale(
+    double* a, double b, double* result, int linear_idx) {
+    result[linear_idx] = a[linear_idx] * b;
+}
+
+__device__ __inline__ void element_abs(
+    double* a, double* result, int linear_idx) {
+    result[linear_idx] = fabs(a[linear_idx]);
+}
+
+__device__ __inline__ void element_sqrt(
+    double* a, double* result, int linear_idx) {
+    result[linear_idx] = sqrt(a[linear_idx]);
+}
+
+__device__ __inline__ void element_set_value_below_threshold(
+    double* a, double* b, int linear_idx,
+    double threshold, double value) {
+    if (b[linear_idx] < threshold) {
+        a[linear_idx] = value;
+    }
+}
+
+__device__ __inline__ void element_tanh(
+    double* a, int linear_idx) {
+    a[linear_idx] = tanh(a[linear_idx]);
+}
+
