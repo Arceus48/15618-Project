@@ -60,7 +60,7 @@ __global__ void reduce(double* g_idata, double* g_odata, int total_num) {
 }
 
 void array_recursive_reduce(double* a, double* result, int nrow, int ncol) {
-  int total_num = 1011;
+  int total_num = nrow * ncol;
 
   while (total_num > 0) {
     cudaMemset(result, 0, sizeof(double) * nrow * ncol);
