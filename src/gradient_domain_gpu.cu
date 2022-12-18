@@ -46,7 +46,7 @@ void array_recursive_reduce(double *a, double *result, int nrow, int ncol) {
     cudaMemset(result, 0, sizeof(double) * nrow * ncol);
     dim3 gridDim(1, 1);
     dim3 blockDim(ncol, nrow);
-    array_subreduce<<gridDim, blockDim>>(a, result, nrow, ncol);
+    array_subreduce<<<gridDim, blockDim>>>(a, result, nrow, ncol);
 }
 
 double* tmp1;
@@ -128,7 +128,7 @@ __global__ void inte_stage1(
 
     if (is_boundary) {
         q[linear_idx] = 0.0;
-        tmp[linear_idx] = 0.0
+        tmp[linear_idx] = 0.0;
         return;
     }
 
@@ -202,7 +202,7 @@ void gradIntegrate(double *gradX, double *gradY,
     for (int i = 0; i < niter; i++) {
         double loss = sqrt(delta);
     // #pragma omp single
-    //     printf("Iter: %d, loss: %f\n", i, loss);
+        printf("Iter: %d, loss: %f\n", i, loss);
         if (loss <= conv) {
             break;
         }
@@ -240,7 +240,11 @@ void gradIntegrate(double *gradX, double *gradY,
  * @param[in] ncol
  */
  __global__ void fuseGrad(double* A, double* F, double sig, double thld, double* gradA,
-              double* gradF, double* fused, int nrow, int ncol) {
+              double* gradF, double* fused,
+              double* tmp1, double* tmp2, double* tmp3,
+              double* nume, double *denom, double* M, double* Ws,
+              double* one_M, double* one_Ws,
+              int nrow, int ncol) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     int linear_idx = row * ncol + col;
@@ -320,8 +324,9 @@ void fuseGradRgb(double** A, double** F, double* gradA, double* gradF,
     dim3 blockDim(BLK_WIDTH, BLK_WIDTH);
     for (int i = 2; i >= 0; i--) {
       fuseGrad<<<gridDim, blockDim>>>(A[i], F[i], sig, thld, gradA + i * 2 * nrow * ncol,
-               gradF + i * 2 * nrow * ncol, fused + i * 2 * nrow * ncol, nrow,
-               ncol);
+               gradF + i * 2 * nrow * ncol, fused + i * 2 * nrow * ncol,
+               tmp1, tmp2, tmp3, nume, denom, M, Ws, one_M, one_Ws,
+               nrow, ncol);
     }
 }
 
@@ -348,9 +353,14 @@ void gradInteRgb(double* fused, double** argb, double** frgb, double** output,
     for (int i = 2; i >= 0; i--) {
       gradIntegrate(fused + i * 2 * nrow * ncol,
         fused + (i * 2 + 1) * nrow * ncol,
-        D, frgb[i], output[i], nrow, ncol, conv, niter);
+        D, frgb[i], output[i],
+        nrow, ncol, conv, niter);
     }
 }
+
+// void printGrad(double *fused, int nrow, int ncol) {
+//     double **fuse_gradX = 
+// }
 
 int main(int argc, char** argv) {
   if (argc != 9) {
@@ -385,7 +395,7 @@ int main(int argc, char** argv) {
   }
 
   // Allocate buffers
-  double* gradA, gradF, fused;
+  double *gradA, *gradF, *fused;
   cudaMalloc(&gradA, 3 * 2 * nrow * ncol * sizeof(double));
   cudaMalloc(&gradF, 3 * 2 * nrow * ncol * sizeof(double));
   cudaMalloc(&fused, 3 * 2 * nrow * ncol * sizeof(double));
