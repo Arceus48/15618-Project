@@ -328,6 +328,33 @@ void fuseGradRgb(double** A, double** F, double* gradA, double* gradF,
   }
 }
 
+// All use gradient of the second picture.
+__global__ void fuseNaive(double* F,
+  double* fused, int nrow, int ncol) {
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int i = row * ncol + col;
+    if (row <= 0 || row + 1 >= nrow || col <= 0 || col + 1 >= ncol) {
+      return;
+    }
+
+    gradientx(F, fused, ncol, i);
+    gradienty(F, fused + nrow * ncol, ncol, i);
+}
+
+void fuseNaiveRgb(double** A, double** F, double* gradA, double* gradF,
+  double* fused, int nrow, int ncol) {
+    dim3 gridDim((ncol + BLK_WIDTH - 1) / BLK_WIDTH,
+        (nrow + BLK_WIDTH - 1) / BLK_WIDTH);
+    dim3 blockDim(BLK_WIDTH, BLK_WIDTH);
+    for (int i = 2; i >= 0; i--) {
+      // printf("Fuse grad %d\n", i);
+      fuseNaive<<<gridDim, blockDim>>>(
+        F[i], fused + i * 2 * nrow * ncol, nrow, ncol);
+    }
+}
+
+
 /**
  * Allocate space for output before calling the function!
  *
@@ -369,7 +396,7 @@ void printGrad(double* fused, int nrow, int ncol) {
 }
 
 int main(int argc, char** argv) {
-  if (argc != 9) {
+  if (argc != 11 && argc != 7) {
     printf("Check params.\n");
     return 0;
   }
@@ -377,12 +404,25 @@ int main(int argc, char** argv) {
   // argv[2]: flash photo path
   // use_raw and mode are ignored
 
-  double sig = stod(argv[3]);
-  double thld = stod(argv[4]);
-  int bound_cond = stoi(argv[5]);
-  int init_opt = stoi(argv[6]);
-  double conv = stod(argv[7]);
-  int niter = stoi(argv[8]);
+  int mode = stoi(argv[4]);
+  int bound_cond;
+  int init_opt;
+  double sig;
+  double thld;
+  double conv;
+  int niter;
+  // Flash pair.
+  if (mode == 1) {
+    sig = stod(argv[5]);
+    thld = stod(argv[6]);
+    bound_cond = stoi(argv[7]);
+    init_opt = stoi(argv[8]);
+    conv = stod(argv[9]);
+    niter = stoi(argv[10]);
+  } else { // Video patching.
+    conv = stod(argv[5]);
+    niter = stoi(argv[6]);
+  }
 
   // Load the two images
   int nrow;
@@ -426,12 +466,21 @@ int main(int argc, char** argv) {
   //   cudaCheckError(cudaDeviceSynchronize());
   // Computation
   auto start = std::chrono::high_resolution_clock::now();
-  fuseGradRgb(argb_gpu, frgb_gpu, gradA, gradF, fused, sig, thld, nrow, ncol);
+  if (mode == 1) {
+    fuseGradRgb(argb_gpu, frgb_gpu, gradA, gradF, fused, sig, thld, nrow, ncol);
+  } else {
+    fuseNaiveRgb(argb_gpu, frgb_gpu, gradA, gradF, fused, nrow, ncol);
+  }
   cudaCheckError(cudaDeviceSynchronize());
   auto end1 = std::chrono::high_resolution_clock::now();
   //   printGrad(fused, nrow, ncol);
-  gradInteRgb(fused, argb_gpu, frgb_gpu, output_gpu, bound_cond, init_opt, nrow,
-              ncol, conv, niter);
+  if (mode == 1) {
+    gradInteRgb(fused, argb_gpu, frgb_gpu, output_gpu, bound_cond, init_opt, nrow,
+      ncol, conv, niter);
+  } else {
+    gradInteRgb(fused, frgb_gpu, argb_gpu, output_gpu, bound_cond, init_opt, nrow,
+      ncol, conv, niter);
+  }
   cudaCheckError(cudaDeviceSynchronize());
   auto end = std::chrono::high_resolution_clock::now();
 
@@ -446,7 +495,7 @@ int main(int argc, char** argv) {
                cudaMemcpyDeviceToHost);
   }
 
-  saveImage(output, "test.png", nrow, ncol);
+  saveImage(output, argv[3], nrow, ncol);
 
   // Memory leak? Who cares!
   return 0;
