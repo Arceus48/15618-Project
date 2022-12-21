@@ -10,6 +10,7 @@ https://drive.google.com/file/d/1iBacXAEyxzsSgcf4xaauOSkMr72gTlk7/view?usp=shari
 ### Use Python wrapper for Video Poisson patching
 You may need to specify loss and niter accordingly.
 ```python
+from interactive_wrapper.py import *
 video_poisson_fusion('demo_video.mp4', '/tmp/patch.png', 50, 300)
 ```
 
