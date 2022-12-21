@@ -1,6 +1,18 @@
 ### Demo Video
 https://drive.google.com/file/d/1iBacXAEyxzsSgcf4xaauOSkMr72gTlk7/view?usp=sharing
 
+
+### Run GPU Binary Directly
+```bash
+./src/gradient_domain_gpu ./img/museum/museum_ambient.png ./img/museum/museum_flash.png 10 0.5 2 2 0.005 1000
+```
+
+### Use Python wrapper for Video Poisson patching
+You may need to specify loss and niter accordingly.
+```python
+video_poisson_fusion('demo_video.mp4', '/tmp/patch.png', 50, 300)
+```
+
 ### Install OpenCV
 1. Run the commands at your home directory below to install OpenCV
 
@@ -18,6 +30,9 @@ make install
 # The cuda path was added previously...
 export LD_LIBRARY_PATH=$HOME/opencv_install/lib:/usr/local/cuda-11.7/lib64/:${LD_LIBRARY_PATH}
 ```
+
+### Install Python Dependency
+`pip3 install -U pims MoviePy scikit-image`
 
 ### How to use it
 
